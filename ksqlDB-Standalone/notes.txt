@@ -1,0 +1,55 @@
+1. Get standalone ksqlDB 
+Since ksqlDB runs natively on Apache Kafka, you'll need to have a kafka installation running that ksqlDB is configured to use. The docker-compose files tothe right will run everything for you via Docker, including ksqlDB itself. 
+
+2. Start ksqlDB's server 
+docker-compose up 
+
+3. Start ksqlDB's interactive CLI 
+ksqlDB runs as a server which clients connect to in order to issue queries. 
+
+Run this command to connect to the ksqlDB server and enter an interactive command-line interface (CLI) session. 
+
+docker exec -it ksqldb-cli ksql http://ksqldb-server:8088 
+
+4. Create a stream 
+The first thing we're going to do is create a stream. A stream essentially associated a schema with underlying Kafka topic. Here's what each parameter in the CREATE STREAM statement does:
+    - kafka_topic: Name of the kafka topic underlying the stream. In this case it will be automatically created because it doesn't exit yet, but streams may also be created over topics that already exist. 
+    - value_format: Encoding of the messages stored in the kafka topic. For JSON encoding, each row will be stored as a JSON object whose keys/values are column names/values. For example: {"profileid":"c2309eec","latitude":37.7877,"longitude": - 122.4205}
+    - partitions: Number of partitions to create for the locations topic. Note that this parameter is not needed for topics that already exist. 
+
+    CREATE STREAM riderLocations (profileId VARCHAR, latitude DOUBLE, longitude DOUBLE)
+  WITH (kafka_topic='locations', value_format='json', partitions=1);
+
+
+5. Run a continuous query over the stream 
+Run the given query using your interactive CLI session. 
+docker exec -it ksqldb-cli ksql http://ksqldb-server:8088
+
+-- Mountain View lat, long: 37.4133, -122.1162
+SELECT * FROM riderLocations
+  WHERE GEO_DISTANCE(latitude, longitude, 37.4133, -122.1162) <= 5 EMIT CHANGES;
+
+
+
+This query will output all rows from the riderLocations stream whose coordinates are whin 5 miles of Mountain View. 
+
+This is the first thing that may feel a bit unfamiliar to your, because the query will never return untill it's terminated. It will perpetually push output rows to the client as events are written to the riderLocations stream. 
+
+Leave this query running in the CLI session for now. Next, we're going to write some data into the riderLocations stream so that the query begins producing output. 
+
+6. Start another CLI session 
+Since the CLI session from (5) is busy waiting for output from the continuous query, let's start another session that we can use to write some data into ksqlDB. 
+
+
+
+7. Populate the stream with events 
+Run each of the given INSERT statement within the new CLI session, and keep an eye on the CLI session from  (5) as you do. 
+
+The continuous query will output matching rows in realtime as soon as they're written to the riderLocations stream. 
+
+INSERT INTO riderLocations (profileId, latitude, longitude) VALUES ('c2309eec', 37.7877, -122.4205);
+INSERT INTO riderLocations (profileId, latitude, longitude) VALUES ('18f4ea86', 37.3903, -122.0643);
+INSERT INTO riderLocations (profileId, latitude, longitude) VALUES ('4ab5cbad', 37.3952, -122.0813);
+INSERT INTO riderLocations (profileId, latitude, longitude) VALUES ('8b6eae59', 37.3944, -122.0813);
+INSERT INTO riderLocations (profileId, latitude, longitude) VALUES ('4a7c7b41', 37.4049, -122.0822);
+INSERT INTO riderLocations (profileId, latitude, longitude) VALUES ('4ddad000', 37.7857, -122.4011);

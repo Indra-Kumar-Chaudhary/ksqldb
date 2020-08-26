@@ -1,0 +1,8 @@
+Implement it. 
+
+
+1. Get the Debezium connector 
+To get started, download the Debezium connector to a fresh directory. The easiest way to do this is by using 
+confluent-hub. 
+
+mkdir confluent-hub-components 
